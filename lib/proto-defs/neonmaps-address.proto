@@ -1,0 +1,20 @@
+syntax = "proto2";
+message StreetAddresses{
+	enum MemberType {
+		NODE = 0;
+		WAY = 1;
+		RELATION = 2;
+	}
+	required string streetName = 1;
+
+	repeated uint64 item = 10 [packed = true];
+	repeated MemberType itemType = 11 [packed = true];
+
+	repeated string unitNumber = 12;
+	repeated uint32 streetNumber = 13 [packed = true];
+	repeated string streetNumberSuffix = 14;
+
+	repeated uint64 interpolations = 20 [packed = true];
+	repeated uint32 interpolationStart = 21 [packed = true];
+	repeated uint32 interpolationEnd = 22 [packed = true];
+}
