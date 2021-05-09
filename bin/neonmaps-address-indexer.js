@@ -151,7 +151,7 @@ const geoContainsMultiPolygon = function(
 					continue;
 				}
 				const cityCentroid = geoCentroid(geoCity);
-				potentialCity[sCentroid] = cityCentroid;
+				geoCity[sCentroid] = cityCentroid;
 				/* It's cheaper to first sort by distance because geoContains is very expensive. It's better if we
 				   only have to use it once or twice instead of potentially the entire list */
 				for(let ii = 0; ii < topCountrySubdivisons.length; ii += 1){
@@ -190,10 +190,78 @@ const geoContainsMultiPolygon = function(
 			);
 		}
 		console.log("City search: " + (mapSize - fileOffsetStart) + "/" + (mapSize - fileOffsetStart) + " (100%)");
-		for(let i = 0; i < topCountrySubdivisons[0][sUnsortedSubDivision][0].length; i += 1){
-			console.log(topCountrySubdivisons[0][sUnsortedSubDivision][0][i].properties.name);
+		let subDivisionCount = 0;
+		let subDivisionsProcessed = 0;
+		for(let i = 0; i < topCountrySubdivisons.length; i += 1){
+			const topSubDiv = topCountrySubdivisons[i];
+			/**@type {Array<Array<turf.Feature<turf.Polygon | turf.MultiPolygon>>>} */
+			const unsortedSubDivs = topSubDiv[sUnsortedSubDivision];
+			for(let ii = 0; ii < unsortedSubDivs.length; ii += 1){
+				subDivisionCount += unsortedSubDivs[ii].length;
+			}
 		}
-		console.log(topCountrySubdivisons.map(v => v.properties.name));
+		for(let i = 0; i < topCountrySubdivisons.length; i += 1){
+			const topSubDiv = topCountrySubdivisons[i];
+			/**@type {Array<Array<turf.Feature<turf.Polygon | turf.MultiPolygon>>>} */
+			const unsortedSubDivs = topSubDiv[sUnsortedSubDivision];
+
+			/**@type {Array<turf.Feature<turf.MultiPolygon>>} */
+			for(let ii = unsortedSubDivs.length - 1; ii > 0; ii -= 1){
+				const outerSubdivs = unsortedSubDivs[ii - 1];
+				const innerSubdivs = unsortedSubDivs[ii];
+				for(let iii = 0; iii < innerSubdivs.length; iii += 1){
+					const innerSubdiv = innerSubdivs[iii];
+					/* As said before, it's cheaper to first sort by distance because geoContains is very expensive.
+					   It's better if we only have to use it once or twice instead of potentially the entire list */
+					for(let iv = 0; iv < outerSubdivs.length; iv += 1){
+						const outerSubdiv = outerSubdivs[iv];
+						outerSubdiv[sDistance] = geoDistance(outerSubdiv[sCentroid], innerSubdiv[sCentroid]);
+					}
+					outerSubdivs.sort((a, b) => a[sDistance] - b[sDistance]);
+					for(let iv = 0; iv < outerSubdivs.length; iv += 1){
+						const outerSubdiv = outerSubdivs[iv];
+						if(geoContainsMultiPolygon(outerSubdiv, innerSubdiv)){
+							if(outerSubdiv[sSubDivision] == null){
+								outerSubdiv[sSubDivision] = [];
+							}
+							outerSubdiv[sSubDivision].push(innerSubdiv);
+							innerSubdivs.splice(iii, 1);
+							iii -= 1;
+							break;
+						}
+					}
+					subDivisionsProcessed += 1;
+					logProgressMsg(
+						"City subdivide: " + subDivisionsProcessed + "/" + subDivisionCount + " (" +
+						(subDivisionsProcessed / subDivisionCount * 100).toFixed(2) +
+						"%)"
+					);
+				}
+				if(ii > 1){
+					subDivisionCount += innerSubdivs.length;
+				}
+				for(let iii = 0; iii < innerSubdivs.length; iii += 1){
+					// This "inner" subdivisions aren't contained by anything, shove it one level up
+					outerSubdivs.push(innerSubdivs[iii]);
+				}
+			}
+			topSubDiv[sSubDivision] = unsortedSubDivs[0] ?? [];
+			subDivisionsProcessed += topSubDiv[sSubDivision].length;
+		}
+		
+		console.log("City subdivide: " + (subDivisionCount) + "/" + (subDivisionCount) + " (100%)");
+		const printTree = function(/**@type {turf.Feature<turf.MultiPolygon>} */ thing, depth = "    "){
+			console.log(depth + thing.properties.name + " (" + thing.properties.place + ")");
+			const subdivs = thing[sSubDivision];
+			if(subdivs && subdivs.length){
+				for(let i = 0; i < subdivs.length; i += 1){
+					printTree(subdivs[i], depth + "    ");
+				}
+			}
+		}
+		for(let i = 0; i < topCountrySubdivisons.length; i += 1){
+			printTree(topCountrySubdivisons[i]);
+		}
 	}catch(ex){
 		console.error(ex);
 		process.exitCode = 1;
