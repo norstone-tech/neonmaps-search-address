@@ -5,9 +5,11 @@ message StreetAddresses{
 		WAY = 1;
 		RELATION = 2;
 	}
-	required string streetName = 1; // As in the OSM data untouched
-	required uint32 streetType = 2;
-	required uint64 phonetics = 3;
+	required string streetFullName = 1; // As in the OSM data untouched
+	required string streetName = 2; // always in lowercase
+	required uint32 streetType = 3;
+	optional uint8 streetDirection = 4;
+	// required uint64 phonetics = 5;
 
 	repeated uint64 item = 10 [packed = true];
 	repeated MemberType itemType = 11 [packed = true];
@@ -20,6 +22,7 @@ message StreetAddresses{
 	repeated uint32 interpolationStart = 21 [packed = true];
 	repeated uint32 interpolationEnd = 22 [packed = true];
 }
+/*
 message StreetGroup{
 	required uint8 firstChar = 1;
 	repeated StreetAddresses streets = 2;
@@ -27,3 +30,4 @@ message StreetGroup{
 	required uint64 lat = 10; 
 	required uint64 lon = 11;
 }
+*/

@@ -6,9 +6,10 @@ const crypto = require("crypto");
 const {MapReader} = require("neonmaps-base");
 const {program} = require('commander');
 const turf = require("@turf/helpers");
-const {default: geoContains} = require("@turf/boolean-contains");
 const {default: geoCentroid} = require("@turf/centroid");
 const {default: geoDistance} = require("@turf/distance");
+const {geoContainsMultiPolygon, logProgressMsg} = require("../lib/util");
+const {StreetAssembler} = require("../lib/indexer/street-assembler");
 const INT48_SIZE = 6;
 const options = program
 	.requiredOption("-m, --map <path>", "Map file, in .osm.pbf format")
@@ -17,35 +18,14 @@ const options = program
 	.opts();
 const mapPath = path.resolve(options.map);
 const mapReader = new MapReader(mapPath, 5, 5);
-let nextProgressMsg = Date.now();
-const logProgressMsg = function(...msg){
-	if(nextProgressMsg <= Date.now()){
-		console.log(...msg);
-		nextProgressMsg = Date.now() + 300;
-	}
-};
-const sDistance = Symbol("distance");
-const sCentroid = Symbol("centroid");
-const sUnsortedSubDivision = Symbol("unsortedSubDivision");
-const sSubDivision = Symbol("subDivision");
-// This function implemented in @turf/boolean-contains for some reason, and enclaves/exclaves are a thing
-const geoContainsMultiPolygon = function(
-	/**@type {turf.Feature<turf.MultiPolygon | turf.Polygon>} */ poly1,
-	/**@type {turf.Feature<turf.MultiPolygon | turf.Polygon>} */ poly2
-){
-	/**@type {Array<turf.Feature<turf.Polygon>>} */
-	const polys1 = poly1.geometry.type == "Polygon" ? [poly1] : poly1.geometry.coordinates.map(v => turf.polygon(v));
-	/**@type {Array<turf.Feature<turf.Polygon>>} */
-	const polys2 = poly2.geometry.type == "Polygon" ? [poly2] : poly2.geometry.coordinates.map(v => turf.polygon(v));
-	for(let i = 0; i < polys1.length; i += 1){
-		for(let ii = 0; ii < polys2.length; ii += 1){
-			if(!geoContains(polys1[i], polys2[ii])){
-				return false;
-			}
-		}
-	}
-	return true;
-};
+
+const {
+	sCentroid,
+	sDistance,
+	sSubDivision,
+	sUnsortedSubDivision
+} = require("../lib/indexer/symbols");
+;
 (async () => {
 	try{
 		const country = (options.country + "").toUpperCase();
@@ -164,7 +144,7 @@ const geoContainsMultiPolygon = function(
 					if(geoContainsMultiPolygon(subdiv, geoCity)){
 						const subdivRules = Object.assign(
 							Object.create(countryRules.boundaryRules.default),
-							countryRules.boundaryRules[subdiv.properties["ISO3166-2"]]
+							countryRules.boundaryRules[subdiv.properties["ISO3166-2"]] ?? {}
 						);
 						/**@type {number} */
 						const cityAdminLevelIndex = subdivRules.cityAdminLevels.indexOf(adminLevel);
@@ -248,7 +228,6 @@ const geoContainsMultiPolygon = function(
 			topSubDiv[sSubDivision] = unsortedSubDivs[0] ?? [];
 			subDivisionsProcessed += topSubDiv[sSubDivision].length;
 		}
-		
 		console.log("City subdivide: " + (subDivisionCount) + "/" + (subDivisionCount) + " (100%)");
 		const printTree = function(/**@type {turf.Feature<turf.MultiPolygon>} */ thing, depth = "    "){
 			console.log(depth + thing.properties.name + " (" + thing.properties.place + ")");
@@ -262,6 +241,9 @@ const geoContainsMultiPolygon = function(
 		for(let i = 0; i < topCountrySubdivisons.length; i += 1){
 			printTree(topCountrySubdivisons[i]);
 		}
+		const tmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), "neonmaps-address-"));
+		const streetAssembler = new StreetAssembler(tmpDir, mapReader, country, topCountrySubdivisons, 10);
+		await streetAssembler.doTheThing();
 	}catch(ex){
 		console.error(ex);
 		process.exitCode = 1;
