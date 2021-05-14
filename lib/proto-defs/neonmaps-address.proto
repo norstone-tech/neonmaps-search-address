@@ -12,10 +12,6 @@ message StreetAddresses{
 		NORTH = 3;
 	}
 	required string streetFullName = 1; // As in the OSM data untouched
-	required string streetName = 2; // always in lowercase
-	optional uint32 streetType = 3;
-	optional StreetDirection streetDirection = 4;
-	// required uint64 phonetics = 5;
 
 	repeated uint64 item = 10 [packed = true];
 	repeated MemberType itemType = 11 [packed = true];
@@ -26,7 +22,8 @@ message StreetAddresses{
 
 	repeated uint64 interpolations = 20 [packed = true];
 	repeated uint32 interpolationStart = 21 [packed = true];
-	repeated uint32 interpolationEnd = 22 [packed = true];
+	repeated uint32 interpolationMul = 22 [packed = true];
+	repeated uint32 interpolationEnd = 23 [packed = true];
 }
 /*
 message StreetGroup{

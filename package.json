@@ -21,7 +21,8 @@
 		"protocol-buffers-schema": "^3.5.1",
 		"binary-search-bounds": "^2.0.5",
 		"commander": "^7.2.0",
-		"neonmaps-base": "^0.2.1"
+		"neonmaps-base": "^0.2.1",
+		"talisman": "^1.1.4"
 	},
 	"repository": {
 		"type": "git",
