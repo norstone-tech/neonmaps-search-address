@@ -5,12 +5,6 @@ message StreetAddresses{
 		WAY = 1;
 		RELATION = 2;
 	}
-	enum StreetDirection {
-		EAST = 0;
-		SOUTH = 1;
-		WEST = 2;
-		NORTH = 3;
-	}
 	required string streetFullName = 1; // As in the OSM data untouched
 
 	repeated uint64 item = 10 [packed = true];
