@@ -8,6 +8,7 @@ const {program} = require('commander');
 const turf = require("@turf/helpers");
 const {default: geoCentroid} = require("@turf/centroid");
 const {default: geoDistance} = require("@turf/distance");
+const {default: geoBBox} = require("@turf/bbox");
 const {geoContainsMultiPolygon, logProgressMsg} = require("../lib/util");
 const {StreetAssembler} = require("../lib/indexer/street-assembler");
 const INT48_SIZE = 6;
@@ -91,6 +92,7 @@ const {
 		for(let i = 0; i < topCountrySubdivisons.length; i += 1){
 			const subdiv = topCountrySubdivisons[i];
 			subdiv[sCentroid] = geoCentroid(subdiv);
+			subdiv.bbox = geoBBox(subdiv);
 		}
 		const countryRules = require("../lib/country-rules/ca");
 		fileOffsetStart = fileOffset = offsetRelationStart;
@@ -135,6 +137,7 @@ const {
 				}
 				const cityCentroid = geoCentroid(geoCity);
 				geoCity[sCentroid] = cityCentroid;
+				geoCity.bbox = geoBBox(geoCity);
 				/* It's cheaper to first sort by distance because geoContains is very expensive. It's better if we
 				   only have to use it once or twice instead of potentially the entire list */
 				for(let ii = 0; ii < topCountrySubdivisons.length; ii += 1){
