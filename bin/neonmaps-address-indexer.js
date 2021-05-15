@@ -114,7 +114,10 @@ const {
 				if(
 					!validCityAdminLevel.has(adminLevel) ||
 					potentialCity.tags.get("type") != "boundary" ||
-					potentialCity.tags.get("boundary") != "administrative"
+					(
+						potentialCity.tags.get("boundary") != "administrative" &&
+						potentialCity.tags.get("boundary") != "aboriginal_lands"
+					)
 				){
 					continue;
 				}
