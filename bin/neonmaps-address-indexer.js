@@ -10,11 +10,13 @@ const {default: geoCentroid} = require("@turf/centroid");
 const {default: geoDistance} = require("@turf/distance");
 const {default: geoBBox} = require("@turf/bbox");
 const {geoContainsMultiPolygon, logProgressMsg} = require("../lib/util");
+const {createDiskedFeature} = require("../lib/indexer/disked-feature");
 const {StreetAssembler} = require("../lib/indexer/street-assembler");
 const INT48_SIZE = 6;
 const options = program
 	.requiredOption("-m, --map <path>", "Map file, in .osm.pbf format")
 	.requiredOption("-c, --country <code>", "ISO 3166 country code")
+	.option("-ph2, --phase2 <dir>", "(debug) dir to start phase 2 in")
 	.parse()
 	.opts();
 const mapPath = path.resolve(options.map);
@@ -23,6 +25,8 @@ const mapReader = new MapReader(mapPath, 5, 5);
 const {
 	sCentroid,
 	sDistance,
+	sOSMID,
+	sOSMType,
 	sSubDivision,
 	sUnsortedSubDivision
 } = require("../lib/indexer/symbols");
@@ -35,14 +39,15 @@ const {
 			   time of writing */
 			throw new Error("Only Canada is supported at this time");
 		}
+		const tmpDir = options.phase2 ? path.resolve(options.phase2) : await fsp.mkdtemp(path.join(os.tmpdir(), "neonmaps-address-"));
 		await mapReader.init();
 		const {size: mapSize} = await fsp.stat(mapPath);
 		const mapHeader = await mapReader.readMapSegment(0);
 		const offsetNodeStart = mapHeader._byte_size;
 		const offsetWayStart = (await mapReader.elemIndex.wayIndex.item(0)).readUIntLE(INT48_SIZE, INT48_SIZE);
 		const offsetRelationStart = (await mapReader.elemIndex.relationIndex.item(0)).readUIntLE(INT48_SIZE, INT48_SIZE);
-		let fileOffset = offsetRelationStart;
-		let fileOffsetStart = offsetRelationStart;
+		let fileOffset = offsetWayStart;
+		let fileOffsetStart = offsetWayStart;
 		/**@type {import("neonmaps-base/lib/map-reader-base").OSMRelation} */
 		let countryData;
 		const topCountrySubdivisons = [];
@@ -55,11 +60,13 @@ const {
 				if(!way.tags.has("ISO3166-2") || !way.tags.get("ISO3166-2").startsWith(country)){
 					continue;
 				}
-				const feat = await mapReader.getWayGeoJSON(way);
+				const feat = createDiskedFeature(await mapReader.getWayGeoJSON(way), tmpDir);
 				if(feat == null){
 					console.error("WARNING: " + way.tags.get("name") + " has no geometry!");
 					continue;
 				}
+				feat[sOSMType] = way.type;
+				feat[sOSMID] = way.id;
 				topCountrySubdivisons.push(feat);
 			}
 			for(let i = 0; i < mapSegment.relations.length; i += 1){
@@ -73,11 +80,13 @@ const {
 				if(!relation.tags.has("ISO3166-2") || !relation.tags.get("ISO3166-2").startsWith(country)){
 					continue;
 				}
-				const feat = await mapReader.getRelationGeoJSON(relation);
+				const feat = createDiskedFeature(await mapReader.getRelationGeoJSON(relation), tmpDir);
 				if(feat == null){
 					console.error("WARNING: " + relation.tags.get("name") + " has no (valid) geometry!");
 					continue;
 				}
+				feat[sOSMType] = relation.type;
+				feat[sOSMID] = relation.id;
 				topCountrySubdivisons.push(feat);
 			}
 			fileOffset += rawData._byte_size;
@@ -95,7 +104,7 @@ const {
 			subdiv.bbox = geoBBox(subdiv);
 		}
 		const countryRules = require("../lib/country-rules/ca");
-		fileOffsetStart = fileOffset = offsetRelationStart;
+		fileOffsetStart = fileOffset = offsetWayStart;
 		const validCityAdminLevel = new Set();
 		for(const {cityAdminLevels} of Object.values(countryRules.boundaryRules)){
 			if(cityAdminLevels != null){
@@ -109,9 +118,9 @@ const {
 			/**@type {import("neonmaps-base/lib/map-reader-base").OSMData} */
 			const rawData = await mapReader.readMapSegment(fileOffset);
 			const mapSegment = MapReader.decodeRawData(rawData);
-			// Note: according to the OSM wiki, admin boundaries should not be used on areas
-			for(let i = 0; i < mapSegment.relations.length; i += 1){
-				const potentialCity = mapSegment.relations[i];
+			const things = [...mapSegment.ways, ...mapSegment.relations];
+			for(let i = 0; i < things.length; i += 1){
+				const potentialCity = things[i];
 				const adminLevel = Number(potentialCity.tags.get("admin_level"));
 				if(
 					!validCityAdminLevel.has(adminLevel) ||
@@ -123,7 +132,10 @@ const {
 				){
 					continue;
 				}
-				const geoCity = await mapReader.getRelationGeoJSON(potentialCity);
+				const geoCity = createDiskedFeature(potentialCity.type == "way" ?
+					await mapReader.getWayGeoJSON(potentialCity) :
+					await mapReader.getRelationGeoJSON(potentialCity)
+				, tmpDir);
 				if(geoCity == null){
 					console.error(
 						"WARNING: " + potentialCity.type + " " + potentialCity.id +
@@ -137,6 +149,8 @@ const {
 				}
 				const cityCentroid = geoCentroid(geoCity);
 				geoCity[sCentroid] = cityCentroid;
+				geoCity[sOSMType] = potentialCity.type;
+				geoCity[sOSMID] = potentialCity.id;
 				geoCity.bbox = geoBBox(geoCity);
 				/* It's cheaper to first sort by distance because geoContains is very expensive. It's better if we
 				   only have to use it once or twice instead of potentially the entire list */
@@ -247,9 +261,14 @@ const {
 		for(let i = 0; i < topCountrySubdivisons.length; i += 1){
 			printTree(topCountrySubdivisons[i]);
 		}
-		const tmpDir = await fsp.mkdtemp(path.join(os.tmpdir(), "neonmaps-address-"));
+		
 		const streetAssembler = new StreetAssembler(tmpDir, mapReader, country, topCountrySubdivisons, 10);
-		await streetAssembler.doTheThing();
+		if(options.phase2){
+			console.log("skipping street assembly phase 1")
+		}else{
+			await streetAssembler.doTheThing();
+		}
+		
 	}catch(ex){
 		console.error(ex);
 		process.exitCode = 1;
