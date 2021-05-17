@@ -6,25 +6,47 @@ message StreetAddresses{
 		RELATION = 2;
 	}
 	required string streetFullName = 1; // As in the OSM data untouched
+	required string streetPhoneticName = 2;
 
 	repeated uint64 item = 10 [packed = true];
 	repeated MemberType itemType = 11 [packed = true];
+	repeated string itemName = 12;
 
-	repeated string unitNumber = 12;
-	repeated uint32 streetNumber = 13 [packed = true];
-	repeated string streetNumberSuffix = 14;
+	repeated string unitNumber = 15;
+	repeated uint32 streetNumber = 16 [packed = true];
+	repeated string streetNumberSuffix = 17;
 
 	repeated uint64 interpolations = 20 [packed = true];
 	repeated uint32 interpolationStart = 21 [packed = true];
 	repeated uint32 interpolationMul = 22 [packed = true];
 	repeated uint32 interpolationEnd = 23 [packed = true];
 }
-/*
-message StreetGroup{
-	required uint8 firstChar = 1;
-	repeated StreetAddresses streets = 2;
-	// centroid, in nanodegrees
-	required uint64 lat = 10; 
-	required uint64 lon = 11;
+message StreetGroup {
+	required uint32 groupIndex = 1;
+	repeated uint64 streetIndex = 2 [packed = true];
+	repeated uint64 streetMinNum = 3 [packed = true];
+	repeated uint64 streetMaxNum = 4 [packed = true];
+	repeated StreetAddresses streets = 10;
 }
-*/
+message SubdivisionStreets {
+	repeated StreetGroup streetGroups = 1;
+}
+message Subdivision {
+	enum MemberType {
+		NODE = 0;
+		WAY = 1;
+		RELATION = 2;
+	}
+	required string name = 1;
+
+	repeated uint64 osm_id = 10 [packed = true];
+	repeated MemberType osm_type = 11 [packed = true];
+	// centroid, in nanodegrees
+	required uint64 lat = 12;
+	required uint64 lon = 13;
+	
+	required uint64 streetOffset = 20;
+	required uint64 streetLength = 21;
+	repeated Subdivision subdivision = 22;
+}
+

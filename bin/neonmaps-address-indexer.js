@@ -266,7 +266,7 @@ const {
 		if(options.phase2){
 			console.log("skipping street assembly phase 1")
 		}else{
-			await streetAssembler.doTheThing();
+			await streetAssembler.indexPlaces();
 		}
 		
 	}catch(ex){
