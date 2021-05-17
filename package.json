@@ -18,11 +18,11 @@
 		"@turf/distance": "^6.3.0",
 		"@turf/helpers": "^6.3.0",
 		"@turf/length": "^6.3.0",
-		"pbf": "^3.2.1",
-		"protocol-buffers-schema": "^3.5.1",
 		"binary-search-bounds": "^2.0.5",
 		"commander": "^7.2.0",
-		"neonmaps-base": "^0.2.1",
+		"neonmaps-base": "^0.2.2",
+		"pbf": "^3.2.1",
+		"protocol-buffers-schema": "^3.5.1",
 		"talisman": "^1.1.4"
 	},
 	"repository": {
