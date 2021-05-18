@@ -268,7 +268,7 @@ const {
 		}else{
 			await streetAssembler.indexPlaces();
 		}
-		
+		await streetAssembler.createFile();
 	}catch(ex){
 		console.error(ex);
 		process.exitCode = 1;
