@@ -39,8 +39,8 @@ message Subdivision {
 	}
 	required string name = 1;
 
-	repeated uint64 osm_id = 10 [packed = true];
-	repeated MemberType osm_type = 11 [packed = true];
+	required uint64 osmID = 10;
+	required MemberType osmType = 11;
 	// centroid, in nanodegrees
 	required uint64 lat = 12;
 	required uint64 lon = 13;

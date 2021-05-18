@@ -20,7 +20,7 @@ const options = program
 	.parse()
 	.opts();
 const mapPath = path.resolve(options.map);
-const mapReader = new MapReader(mapPath, 5, 5);
+const mapReader = new MapReader(mapPath, 5, 5, 0, 10, 5, true, false);
 
 const {
 	sCentroid,
