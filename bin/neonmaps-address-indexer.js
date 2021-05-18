@@ -32,6 +32,7 @@ const {
 } = require("../lib/indexer/symbols");
 ;
 (async () => {
+	const tmpDir = options.phase2 ? path.resolve(options.phase2) : await fsp.mkdtemp(path.join(os.tmpdir(), "neonmaps-address-"));
 	try{
 		const country = (options.country + "").toUpperCase();
 		if(country !== "CA"){
@@ -39,7 +40,6 @@ const {
 			   time of writing */
 			throw new Error("Only Canada is supported at this time");
 		}
-		const tmpDir = options.phase2 ? path.resolve(options.phase2) : await fsp.mkdtemp(path.join(os.tmpdir(), "neonmaps-address-"));
 		await mapReader.init();
 		const {size: mapSize} = await fsp.stat(mapPath);
 		const mapHeader = await mapReader.readMapSegment(0);
@@ -274,4 +274,7 @@ const {
 		process.exitCode = 1;
 	}
 	await mapReader.stop();
+	if(!options.phase2){
+		await fsp.rm(tmpDir, {recursive: true, force: true});
+	}
 })();
