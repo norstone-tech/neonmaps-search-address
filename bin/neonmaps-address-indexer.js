@@ -21,7 +21,11 @@ const options = program
 	.opts();
 const mapPath = path.resolve(options.map);
 const mapReader = new MapReader(mapPath, 5, 5, 0, 10, 5, true, false);
-
+const enumElemType = {
+	node: 0,
+	way: 1,
+	relation: 2
+}
 const {
 	sCentroid,
 	sDistance,
@@ -65,7 +69,7 @@ const {
 					console.error("WARNING: " + way.tags.get("name") + " has no geometry!");
 					continue;
 				}
-				feat[sOSMType] = way.type;
+				feat[sOSMType] = enumElemType[way.type];
 				feat[sOSMID] = way.id;
 				topCountrySubdivisons.push(feat);
 			}
@@ -85,7 +89,7 @@ const {
 					console.error("WARNING: " + relation.tags.get("name") + " has no (valid) geometry!");
 					continue;
 				}
-				feat[sOSMType] = relation.type;
+				feat[sOSMType] = enumElemType[relation.type];
 				feat[sOSMID] = relation.id;
 				topCountrySubdivisons.push(feat);
 			}
@@ -149,7 +153,7 @@ const {
 				}
 				const cityCentroid = geoCentroid(geoCity);
 				geoCity[sCentroid] = cityCentroid;
-				geoCity[sOSMType] = potentialCity.type;
+				geoCity[sOSMType] = enumElemType[potentialCity.type];
 				geoCity[sOSMID] = potentialCity.id;
 				geoCity.bbox = geoBBox(geoCity);
 				/* It's cheaper to first sort by distance because geoContains is very expensive. It's better if we
