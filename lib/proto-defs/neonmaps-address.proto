@@ -42,8 +42,8 @@ message Subdivision {
 	required uint64 osmID = 10;
 	required MemberType osmType = 11;
 	// centroid, in nanodegrees
-	required uint64 lat = 12;
-	required uint64 lon = 13;
+	required sint64 lat = 12;
+	required sint64 lon = 13;
 	
 	required uint64 streetOffset = 20;
 	required uint64 streetLength = 21;
